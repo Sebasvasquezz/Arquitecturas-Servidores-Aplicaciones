@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplicaciones Distribuidas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="content">
+            <h1>GET Hello Request</h1>
+            <p>Click the button to use the hello service using a GET request.</p>
+            <img src="spiderman.jpg" alt="The incredible spiderman">
+            <input type="text" id="textInputGet" placeholder="Type your name here..." />
+            <button onclick="loadGetMsg()">Hello Input</button>
+            <div id="getResult"></div>
+        </div>
+        <div class="content">
+            <h1>GET PI Request</h1>
+            <p>Click the button to use the PI service using a GET request.</p>
+            <img src="spiderman.jpg" alt="The incredible spiderman">
+            <input type="text" id="decimalsInputPi" placeholder="Type the number of decimal places you want to see..." />
+            <button onclick="loadGetPiMsg()">PI Input</button>
+            <div id="piResult"></div>
+        </div>
+    </div>
+
+    <script>
+        function loadGetMsg() {
+            let nameVar = document.getElementById("textInputGet").value;
+            console.log("GET request sent with name:", nameVar);
+
+            const xhttp = new XMLHttpRequest();
+            xhttp.onload = function() {
+                console.log("GET response received:", this.responseText);
+                document.getElementById("getResult").innerHTML = this.responseText;
+            }
+            xhttp.open("GET", "/app/hello?name=" + nameVar);
+            xhttp.send();
+        }
+
+        function loadGetPiMsg() {
+            let decimals = document.getElementById("decimalsInputPi").value;
+            console.log("GET request sent with decimals:", decimals);
+
+            const xhttp = new XMLHttpRequest();
+            xhttp.onload = function() {
+                console.log("GET response received:", this.responseText);
+                document.getElementById("piResult").innerHTML = this.responseText;
+            }
+            xhttp.open("GET", "/app/pi?decimals=" + decimals);
+            xhttp.send();
+        }
+    </script>
+</body>
+</html>
