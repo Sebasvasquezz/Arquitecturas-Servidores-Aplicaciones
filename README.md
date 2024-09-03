@@ -1,6 +1,25 @@
 # Simple Web Server
 
-This repository contains a simple multithreaded web server implemented in Java, designed to handle multiple client connections simultaneously using a fixed thread pool. The server listens on a specified port and responds to HTTP GET and POST requests. It serves static files from a predefined web root directory and includes support for custom RESTful services like "hello" and "echo". The server efficiently manages client connections using Java's networking APIs and concurrent programming features. It also includes error handling for client requests and supports basic HTTP response codes such as 200 (OK) and 404 (Not Found). This project is suitable for learning about concurrent server programming and basic web server functionality in Java.
+This repository contains a simple multithreaded web server implemented in Java, designed to handle multiple client connections simultaneously using a fixed thread pool. The server listens on a specified port and responds to HTTP GET and POST requests. It serves static files from a predefined web root directory and includes support for custom RESTful services like "hello" and "pi".
+
+### Annotation-Based Implementation
+A key feature of this web server is the use of custom Java annotations to define RESTful endpoints. The annotations implemented in this project include:
+
+- `@RestController`: Applied at the class level to indicate that the class serves as a RESTful service controller.
+- `@GetMapping`: Applied to methods to specify the HTTP GET request path that the method should handle.
+- `@RequestParam`: Used to bind request parameters to method parameters, allowing for the extraction of query parameters from the request URL.
+
+These annotations simplify the process of mapping HTTP requests to specific methods, making the server more extensible and modular. The server automatically scans for annotated classes and methods, registering them as handlers for the specified endpoints.
+
+### Project Overview
+- **Multithreading**: The server handles multiple client connections concurrently by utilizing a fixed thread pool, ensuring that multiple requests can be processed simultaneously.
+- **Static File Serving**: It serves static files, such as HTML, CSS, and JavaScript, from a designated web root directory.
+- **RESTful Services**: Custom RESTful endpoints are supported, with built-in services like "hello" and "pi" that demonstrate the server's ability to handle dynamic content generation based on request parameters.
+- **Error Handling**: The server includes basic error handling, responding with appropriate HTTP status codes such as 200 (OK) and 404 (Not Found) depending on the request outcome.
+- **Learning Tool**: This project is ideal for those looking to learn about concurrent server programming, basic web server functionality in Java, and the use of custom annotations to build flexible and maintainable web services.
+
+The annotation-driven approach enhances the flexibility and readability of the codebase, making it easier to expand the server's functionality with additional services and endpoints in the future.
+
 
 ## Getting Started
 
@@ -40,79 +59,70 @@ The execution:
 ## Design
 
 ### Class Diagram
-The class diagram below represents the structure and relationships of the *SimpleWebServer* project, which includes the following classes and interface: *SimpleWebServer*, *ClientHandler*, *RestService*, *HelloService*, and *EchoService*.
+The class diagram below represents the structure and relationships of the *SimpleWebServer* project:
 
 ![Class Diagram](images/classDiagram.png)
 
 ## Classes and Interfaces
 
-### RestService Interface
-- **Description:** This interface defines a contract for RESTful services, requiring the implementation of a *response(String request)* method.
-- **Methods:**
-  - *response(String request)*: Processes an incoming request and returns a response.
+## Class Diagram Explanation
 
-### SimpleWebServer Class
-- **Description:** This class represents a basic multithreaded web server that can handle multiple client connections simultaneously. It serves static files and supports custom RESTful services.
-- **Attributes:**
-  - **PORT (static)**: The port number on which the server listens.
-  - **WEB_ROOT (static)**: The root directory for serving static files.
-  - **services (static)**: A map of registered RESTful services.
-  - **running (static)**: A boolean flag indicating whether the server is running.
-- **Methods:**
-  - **main(String[] args)**: Starts the server, initializes the thread pool, and begins accepting client connections.
-  - **addServices()**: Registers available RESTful services like *HelloService* and *EchoService*.
-  - **stop()**: Stops the server by changing the running flag to *false*.
+The following class diagram illustrates the architecture of our Simple Web Server project, highlighting the core components, their relationships, and the use of annotations to handle RESTful services.
 
-### *ClientHandler* Class
-- **Description:** This class handles individual client connections in separate threads. It processes HTTP requests, serves static files, and delegates requests to the appropriate RESTful services.
-- **Attributes:**
-  - **clientSocket**: The socket through which the client is connected.
-- **Methods:**
-  - **ClientHandler(Socket socket)**: Constructor that initializes the handler with the client socket.
-  - **run()**: The main method that processes the client's HTTP request.
-  - **printRequestLine(String requestLine, BufferedReader in)**: Prints the HTTP request line and headers to the console.
-  - **handleGetRequest(String fileRequested, PrintWriter out, BufferedOutputStream dataOut)**: Handles GET requests to serve static files.
-  - **handlePostRequest(String fileRequested, PrintWriter out, BufferedOutputStream dataOut)**: Handles POST requests, including reading the request payload.
-  - **handleAppRequest(String method, String fileRequested, BufferedReader in, PrintWriter out)**: Delegates the processing of application-specific requests to the appropriate RESTful service.
-  - **getContentType(String fileRequested)**: Determines the MIME type of the requested file based on its extension.
-  - **readFileData(File file, int fileLength)**: Reads the contents of a file into a byte array for serving to the client.
+### Components and Relationships
 
-### HelloService Class
-- **Description:** This class implements the *RestService* interface and provides a service that responds with a personalized greeting based on the *name* parameter extracted from the request.
-- **Methods:**
-  - **response(String request)**: Processes the request to extract the *name* parameter and returns a greeting message.
+- **SimpleWebServer**: This is the central class responsible for managing the lifecycle of the server. It registers controllers (`HelloService` and `PiService`), handles incoming client connections via the `ClientHandler`, and manages the mapping of HTTP requests to the appropriate methods.
 
-### *EchoService* Class
-- **Description:** This class implements the *RestService* interface and provides a simple echo service that extracts a *text* field from a JSON string and returns it as a plain text response.
-- **Methods:**
-  - **response(String message)**: Processes the JSON message to extract the *text* field and returns it in the format "Echo: <text>".
+- **ClientHandler**: A runnable class that handles individual client connections. It processes HTTP requests, including serving static files and delegating requests to the appropriate RESTful service methods. The `SimpleWebServer` creates and manages instances of `ClientHandler`.
 
-This class diagram effectively captures the structure of the server, detailing how the server manages connections, serves files, and handles RESTful services through clearly defined interactions between the classes.
+- **HelloService**: A RESTful service class annotated with `@RestController`. It provides a method `hello`, mapped to the path `/app/hello` using the `@GetMapping` annotation. This method returns a greeting message, optionally customized with a `name` parameter bound via `@RequestParam`.
+
+- **PiService**: Another RESTful service class, also annotated with `@RestController`. It provides a method `pi`, mapped to the path `/app/pi` using `@GetMapping`. This method returns the value of π (Pi) rounded to a specified number of decimal places, which is provided via the `decimals` parameter bound using `@RequestParam`.
+
+### Annotations
+
+- **@RestController**: This annotation marks a class as a RESTful controller, allowing it to handle HTTP requests in the context of the web server.
+
+- **@GetMapping**: This annotation is used on methods to map specific HTTP GET requests to those methods. The value specified in `@GetMapping` corresponds to the URL path.
+
+- **@RequestParam**: This annotation binds HTTP request parameters to method parameters in a controller. It allows for default values if the parameter is not provided in the request.
+
+### Diagram Summary
+
+- **SimpleWebServer → ClientHandler**: The `SimpleWebServer` creates and manages `ClientHandler` instances to handle client connections.
+
+- **SimpleWebServer → HelloService / PiService**: The `SimpleWebServer` registers and interacts with the `HelloService` and `PiService` classes as RESTful controllers.
+
+- **HelloService → RestController / GetMapping / RequestParam**: The `HelloService` class is annotated with `@RestController`, and its methods are mapped using `@GetMapping` and `@RequestParam` to handle HTTP GET requests.
+
+- **PiService → RestController / GetMapping / RequestParam**: Similarly, the `PiService` class is annotated with `@RestController`, and its methods are also mapped using `@GetMapping` and `@RequestParam`.
+
+This architecture enables the server to dynamically handle different types of HTTP requests, serving static content as well as processing dynamic RESTful requests.
 
 ### Arquitectural Diagram
 ![Architectural Diagram](images/architecturalDiagram.png)
 ### Diagram Description:
 
-#### Client:
+## Architectural Diagram Description
 
-- **Browser**: Represents the client's web browser, which sends HTTP requests to the server.
+The architectural diagram illustrates the flow and components involved in the SimpleWebServer application.
 
-#### Backend:
+- **Client (Web Browser)**: The client, typically a web browser, initiates an HTTP request directed at the SimpleWebServer running on port 8080.
 
-- **SimpleWebServer**: A simple web server that accepts incoming connections and delegates them to the *ClientHandler*.
-- **ClientHandler**: The component that processes each HTTP request, handles REST requests through *RestService*, or serves static files directly.
-- **RestService**: An interface that is implemented by different services such as *HelloService* and *EchoService*.
-- **HelloService**: Handles REST requests containing the */app/hello* endpoint, providing a personalized greeting.
-- **EchoService**: Handles REST requests containing the */app/echo* endpoint, returning the text received in the request.
+- **SimpleWebServer**: This is the entry point of the server-side application. It listens for incoming HTTP requests on port 8080. Upon receiving a request, it delegates the connection to a `ClientHandler` for further processing.
 
-#### Communication Flow:
+- **ClientHandler**: The `ClientHandler` is responsible for handling each client request. It first determines the type of request:
+  - If the request is for a static file, the handler serves the requested file from the server's resources.
+  - If the request is for an application-specific endpoint (such as `/app/hello` or `/app/pi`), it delegates the request to the appropriate service.
 
-1. The client's browser sends HTTP requests to the *SimpleWebServer*.
-2. The *SimpleWebServer* accepts the connection and delegates it to the *ClientHandler*.
-3. *ClientHandler* determines the type of request. If it is a REST request, it delegates to *RestService*.
-4. Depending on the endpoint (*/app/hello* or */app/echo*), *RestService* delegates the request to *HelloService* or *EchoService*.
-5. *ClientHandler* also handles requests for static files directly.
-6. Finally, *ClientHandler* sends the HTTP response back to the client's browser.
+- **HelloService and PiService**: These are RESTful services that handle specific types of requests:
+  - **HelloService**: Handles requests to `/app/hello`, returning a personalized greeting message.
+  - **PiService**: Handles requests to `/app/pi`, calculating and returning the value of Pi to a specified number of decimal places.
+
+- **Response Flow**: After processing the request, the `ClientHandler` sends the appropriate HTTP response back to the client's web browser.
+
+This diagram provides a high-level overview of how the different components interact to handle and respond to HTTP requests within the SimpleWebServer application.
+
 
 ## Build the project
 * Run the comand:
@@ -162,7 +172,7 @@ This class diagram effectively captures the structure of the server, detailing h
 
 ## Date
 
-August 21, 2024
+September 02, 2024
 
 ## License
 

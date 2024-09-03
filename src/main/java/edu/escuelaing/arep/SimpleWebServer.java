@@ -8,9 +8,13 @@ import java.net.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.List;
 
 import edu.escuelaing.arep.annotations.GetMapping;
 import edu.escuelaing.arep.annotations.RequestParam;
+import edu.escuelaing.arep.annotations.RestController;
 
 /**
  * The SimpleWebServer class represents a basic multithreaded web server
@@ -46,13 +50,32 @@ public class SimpleWebServer {
         serverSocket.close();
         threadPool.shutdown();
     }
-    private static void initializeControllers() throws ReflectiveOperationException {
-        Class<?> piClass = PiService.class;
-        Class<?> helloClass = HelloService.class;
-        registerController(piClass);
-        registerController(helloClass);
+
+    /**
+     * Initializes the controllers by scanning the specified package for classes
+     * annotated with @RestController. It registers each found controller class
+     * to handle RESTful service requests.
+     *
+     * @throws ReflectiveOperationException if an error occurs while reflecting on the controller classes.
+     * @throws IOException if an error occurs while scanning the package for classes.
+     */
+    private static void initializeControllers() throws ReflectiveOperationException, IOException {
+        String packageName = "edu.escuelaing.arep";
+        List<Class<?>> controllerClasses = findClassesWithAnnotation(packageName, RestController.class);
+        
+        for (Class<?> controllerClass : controllerClasses) {
+            registerController(controllerClass);
+        }
     }
 
+    /**
+     * Registers a controller class by creating an instance of it and mapping
+     * its methods annotated with @GetMapping to their corresponding HTTP paths.
+     *
+     * @param controllerClass the class to be registered as a controller.
+     * @throws ReflectiveOperationException if an error occurs while creating an instance of the controller class
+     *                                      or accessing its methods.
+     */
     private static void registerController(Class<?> controllerClass) throws ReflectiveOperationException {
         Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
         controllers.put(controllerClass.getName(), controllerInstance);
@@ -61,10 +84,41 @@ public class SimpleWebServer {
             if (method.isAnnotationPresent(GetMapping.class)) {
                 GetMapping getMapping = method.getAnnotation(GetMapping.class);
                 getMappings.put(getMapping.value(), method);
-                System.out.println("Se añadio el path: " + getMapping.value()+ " y el metodo: "+ method.getName());
             }
         }
     }
+
+    /**
+     * Scans the specified package for classes annotated with the specified annotation.
+     *
+     * @param packageName the name of the package to scan.
+     * @param annotation the annotation to look for in the classes.
+     * @return a list of classes that are annotated with the specified annotation.
+     * @throws ClassNotFoundException if a class cannot be found during the scan.
+     * @throws IOException if an error occurs while reading from the file system.
+     */
+    private static List<Class<?>> findClassesWithAnnotation(String packageName, Class<? extends Annotation> annotation) throws ClassNotFoundException, IOException {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        assert classLoader != null;
+        String path = packageName.replace('.', '/');
+        URL resource = classLoader.getResource(path);
+        File directory = new File(resource.getFile());
+        List<Class<?>> classes = new ArrayList<>();
+        if (directory.exists()) {
+            String[] files = directory.list();
+            for (String file : files) {
+                if (file.endsWith(".class")) {
+                    String className = packageName + '.' + file.substring(0, file.length() - 6);
+                    Class<?> clazz = Class.forName(className);
+                    if (clazz.isAnnotationPresent(annotation)) {
+                        classes.add(clazz);
+                    }
+                }
+            }
+        }
+        return classes;
+    }
+
     /**
      * Stops the server by setting the running flag to false.
      * This method is called to gracefully shut down the server.
@@ -216,13 +270,13 @@ class ClientHandler implements Runnable {
     }
 
     /**
-     * Handles an application-specific request, delegating the processing to a registered
-     * RESTful service based on the request method (GET or POST).
+     * Handles an application-specific HTTP request by determining the request method (GET),
+     * extracting any query parameters, and invoking the appropriate controller method
+     * that corresponds to the requested path.
      *
-     * @param method the HTTP method of the request (GET or POST).
-     * @param fileRequested the specific endpoint requested (e.g., "/app/hello").
-     * @param in the BufferedReader for reading the request body (for POST requests).
-     * @param out the PrintWriter to send the response to the client.
+     * @param method the HTTP method of the request (e.g., GET).
+     * @param path the request path (e.g., /app/hello?name=John).
+     * @param out the PrintWriter used to send the HTTP response back to the client.
      */
     private void handleAppRequest(String method, String path, PrintWriter out) {
         if ("GET".equalsIgnoreCase(method)) {
@@ -266,6 +320,18 @@ class ClientHandler implements Runnable {
         out.flush();
     }
 
+    /**
+     * Invokes the appropriate controller method that corresponds to the provided HTTP request.
+     * It binds query parameters to method parameters based on the @RequestParam annotation
+     * and converts parameter values to the required types.
+     *
+     * @param handlerMethod the method to be invoked, which corresponds to the requested path.
+     * @param controller the instance of the controller class containing the method.
+     * @param queryParams a map of query parameters extracted from the request URL.
+     * @return the result of invoking the controller method, which is typically a response to be sent back to the client.
+     * @throws IllegalAccessException if the controller method is inaccessible.
+     * @throws InvocationTargetException if the controller method throws an exception.
+     */
     private Object invokeControllerMethod(Method handlerMethod, Object controller, Map<String, String> queryParams) throws IllegalAccessException, InvocationTargetException {
         Parameter[] parameters = handlerMethod.getParameters();
         Object[] args = new Object[parameters.length];
@@ -275,8 +341,13 @@ class ClientHandler implements Runnable {
             if (requestParam != null) {
                 String paramName = requestParam.value();
                 String defaultValue = requestParam.defaultValue();
-                String paramValue = queryParams.getOrDefault(paramName, defaultValue);
-
+                String paramValue = queryParams.get(paramName);
+    
+                // Si el parámetro no está en queryParams o está presente pero es vacío, usar el valor por defecto
+                if (paramValue == null || paramValue.isEmpty()) {
+                    paramValue = defaultValue;
+                }
+    
                 Class<?> paramType = parameters[i].getType();
                 if (paramType == int.class) {
                     args[i] = Integer.parseInt(paramValue);
@@ -288,16 +359,7 @@ class ClientHandler implements Runnable {
     
         return handlerMethod.invoke(controller, args);
     }
-    
-
-    public String getPathWithoutParams(String path) {
-        int questionMarkIndex = path.indexOf("?");
-        if (questionMarkIndex != -1) {
-            return path.substring(0, questionMarkIndex);
-        }
-        return path;
-    }
-  
+      
     /**
      * Determines the MIME type of the requested file based on its extension.
      *
